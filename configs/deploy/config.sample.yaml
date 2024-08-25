@@ -1,0 +1,55 @@
+General:
+  LogLevel: "info"
+
+MarketMaker:
+  StartQty: 10
+  StepQty: 20
+  EndQty: 400 # max trade, ex: 100 DAI in strategy0 and strategy1
+  ProfitThreshold: 50000 # 50_000 Toman
+  Interval: 600s
+  Slippage: 0.001  # 0.001 is 0.1%
+
+Chain:
+  Url: ${MARKET_MAKER_KEEPER_RPC}
+  BlockInterval: 500ms
+  
+Tokens:
+  - Address: '0xd946188a614a0d9d0685a60f541bba1e8cc421ae'
+    Decimals: 18
+    Symbol: 'ZAR'
+    Name: 'Zar Stablecoin'
+  - Address: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1'
+    Decimals: 18
+    Symbol: 'DAI'
+    Name: 'Dai Stablecoin'
+
+Uniswap:
+  PoolFee: 0.01
+
+Nobitex:
+  Url: "https://api.nobitex.ir"
+  Key: ${NOBITEX_API_KEY}
+  MinimumOrderToman: 300_000
+  Timeout: 60s
+  OrderStatusInterval: 2s
+  RetryTimeOut: 360s
+  RetrySleepDuration: 5s
+
+ExecutorWallet:
+  PrivateKey: ${EXECUTOR_PRIVATE_KEY}
+
+Indexer:
+  StartBlock: ${DEX_TRADER_START_BLOCK}
+
+Contracts:
+  DexTrader: "0xb993318B8af82DbA6D30B8a459c954Cb9550714b"
+  UniswapV3Factory: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+  UniswapV3Quoter: "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
+
+Postgres:
+  Host: ${ZARBAN_MAINNET_DB_HOST}
+  Port: ${ZARBAN_MAINNET_DB_PORT}
+  User: ${ZARBAN_MAINNET_DB_USER}
+  Password: ${ZARBAN_MAINNET_DB_PASS}
+  DB: ${DB_NAME}
+  MigrationsPath: '/migrations'
