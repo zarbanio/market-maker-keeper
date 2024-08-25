@@ -1,6 +1,5 @@
 market-maker-keeper
 
-abis/*/*.go
 contracts/artifacts
 contracts/cache
 contracts/typechain-types

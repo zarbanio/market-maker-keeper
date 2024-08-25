@@ -4,7 +4,7 @@ import {NETWORKS_RPC_URL} from './helper-hardhat-config';
 
 require('dotenv').config()
 
-const Private = process.env.Private || '';
+const Private = process.env.PRIVATE_KEY || '';
 const ARBISCAN_KEY = process.env.ARBISCAN_KEY || '';
 
 const config: HardhatUserConfig = {

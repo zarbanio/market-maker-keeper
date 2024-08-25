@@ -58,7 +58,7 @@ func main(cfg configs.Config) {
 		logger.Logger.Debug().Uint64("start block", cfg.Indexer.StartBlock).Msg("new block pointer created.")
 	}
 
-	executorWallet, err := keystore.New(cfg.ExecutorWallet.PrivateKey)
+	executorWallet, err := keystore.New(os.Getenv("PRIVATE_KEY"))
 	if err != nil {
 		logger.Logger.Fatal().Err(err).Msg("error while initializing new executor wallet")
 	}
