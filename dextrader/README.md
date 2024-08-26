@@ -1,4 +1,4 @@
-# Trader Contract
+# Dex Trader Contract
 
 DexTrader contract is wrapper for UniswapV3 based decentralized exchanges
 which makes it easier to interact with UniswapV3 interfaces.
@@ -10,7 +10,7 @@ other network of your choice that has UniswapV3 deployed.
 
 
 ```shell script
-npx hardhat node --fork https://arb-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY_HERE}
+npx hardhat node --fork https://1rpc.io/arb
 npx hardhat test --network localhost
 ```
 
@@ -36,8 +36,8 @@ ARBISCAN_KEY=
 ```
 
 ### Deploy Dex Trader
-You can deploy the contract to arbitrum one mainnet network by running the following command:
 
+* mainnet
 ```shell script
 npx hardhat run scripts/deploy.ts --network main
 ```
