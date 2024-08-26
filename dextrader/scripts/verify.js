@@ -17,13 +17,13 @@ function delay(ms) {
 
 const verifyArbiscanContract = async (contractAddress, params) => {
     try {
-        console.log('[ARBISCAN][WARNING] Verifying deployed contract');
+        console.log('Verifying deployed contract');
         const msDelay = 3000;
         const times = 4;
 
         await verifyWithRetry(contractAddress, params, times, msDelay);
     } catch (error) {
-        console.error('[ARBISCAN][ERROR] Failed to verify contract:', error.message);
+        console.error('[ERROR] Failed to verify contract:', error.message);
     }
 }
 
@@ -35,29 +35,29 @@ const verifyWithRetry = async (contractAddress, params, times, msDelay) => {
         if (times > 1) {
             await verify(contractAddress, params);
         } else if (times === 1) {
-            console.log('[ARBISCAN][WARNING] Trying to verify via uploading all sources.');
+            console.log('Trying to verify via uploading all sources.');
             await verify(contractAddress, params);
         } else {
-            console.error('[ARBISCAN][ERROR] Errors after all the retries, check the logs for more information.');
+            console.error('[ERROR] Errors after all the retries, check the logs for more information.');
         }
     } catch (error) {
         counter--;
 
         if (okErrors.some((okReason) => error.message.includes(okReason))) {
-            console.info('[ARBISCAN][INFO] Skipping due OK response: ', error.message);
+            console.info('Skipping due OK response: ', error.message);
             return;
         }
 
         if (fatalErrors.some((fatalError) => error.message.includes(fatalError))) {
-            console.error('[ARBISCAN][ERROR] Fatal error detected, skip retries and resume deployment.', error.message);
+            console.error('[ERROR] Fatal error detected, skip retries and resume deployment.', error.message);
             return;
         }
 
-        console.error('[ARBISCAN][ERROR]', error.message);
+        console.error('[ERROR]', error.message);
         console.log();
-        console.info(`[ARBISCAN][INFO] Retrying attempts: ${counter}.`);
+        console.info(`[INFO] Retrying attempts: ${counter}.`);
         if (error.message.includes(unableVerifyError)) {
-            console.log('[ARBISCAN][WARNING] Trying to verify via uploading all sources.');
+            console.log('Trying to verify via uploading all sources.');
             params.relatedSources = undefined;
         }
         await verifyWithRetry(contractAddress, params, counter, msDelay);

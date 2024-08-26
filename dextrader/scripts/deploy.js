@@ -16,7 +16,7 @@ async function main() {
     await dexTrader.deployed();
     console.log(`DexTrader contract deployed to ${dexTrader.address}`);
 
-    await verifyArbiscanContract(dexTrader.address, [UniswapV3Router, executor])
+    await verifyArbiscanContract(dexTrader.address, [UniswapV3Router, executor.address])
 }
 
 main().catch((error) => {
