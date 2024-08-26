@@ -1,6 +1,6 @@
 module github.com/zarbanio/market-maker-keeper
 
-go 1.19
+go 1.22
 
 require (
 	github.com/cockroachdb/apd v1.1.0
