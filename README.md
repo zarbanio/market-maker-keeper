@@ -44,12 +44,13 @@ go build main.go
 
 ### Compile contracts:
 Go to the contracts directory and run the following command to compile the contracts.
+
+```shell script
+cd dextrader && npm i && npx hardhat compile
 ```
-npx hardhat compile
-```
-### Run tests:
-```
-npx hardhat test
+```shell script
+npx hardhat node --fork https://1rpc.io/arb
+npx hardhat test --network localhost
 ```
 
 ### Deploy contracts:
