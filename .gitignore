@@ -1,9 +1,9 @@
 market-maker-keeper
-
-contracts/artifacts
-contracts/cache
-contracts/typechain-types
-contracts/node_modules
+main
+dextrader/artifacts
+dextrader/cache
+dextrader/typechain-types
+dextrader/node_modules
 
 # IDEA
 .idea
