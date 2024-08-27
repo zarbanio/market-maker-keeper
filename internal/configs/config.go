@@ -8,60 +8,87 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	EnvironmentMainnet = "mainnet"
+	EnvironmentTestnet = "testnet"
+)
+
+type General struct {
+	Environment string `yaml:"Environment"`
+	LogLevel    string `yaml:"LogLevel"`
+}
+
+type MarketMaker struct {
+	StartQty        float64       `yaml:"StartQty"`
+	StepQty         float64       `yaml:"StepQty"`
+	EndQty          int64         `yaml:"EndQty"`
+	ProfitThreshold int64         `yaml:"ProfitThreshold"`
+	Interval        time.Duration `yaml:"Interval"`
+	Slippage        float64       `yaml:"Slippage"`
+}
+
+type Chain struct {
+	Url           string        `yaml:"Url"`
+	BlockInterval time.Duration `yaml:"BlockInterval"`
+}
+
+type Token struct {
+	Address  string `yaml:"Address"`
+	Decimals int    `yaml:"Decimals"`
+	Symbol   string `yaml:"Symbol"`
+}
+
+type Uniswap struct {
+	PoolFee float64 `yaml:"PoolFee"`
+}
+
+type Nobitex struct {
+	Url                 string        `yaml:"Url"`
+	Key                 string        `yaml:"Key"`
+	MinimumOrderToman   int64         `yaml:"MinimumOrderToman"`
+	Timeout             time.Duration `yaml:"Timeout"`
+	OrderStatusInterval time.Duration `yaml:"OrderStatusInterval"`
+	RetryTimeOut        time.Duration `yaml:"RetryTimeOut"`
+	RetrySleepDuration  time.Duration `yaml:"RetrySleepDuration"`
+}
+
+type Contracts struct {
+	DexTrader        string `yaml:"DexTrader"`
+	UniswapV3Factory string `yaml:"UniswapV3Factory"`
+	UniswapV3Quoter  string `yaml:"UniswapV3Quoter"`
+}
+
+type Indexer struct {
+	StartBlock uint64 `yaml:"StartBlock"`
+}
+
+type Postgres struct {
+	Host           string `yaml:"Host"`
+	Port           int    `yaml:"Port"`
+	User           string `yaml:"User"`
+	Password       string `yaml:"Password"`
+	DB             string `yaml:"DB"`
+	MigrationsPath string `yaml:"MigrationsPath"`
+}
+
 type Config struct {
-	General struct {
-		Environment string `yaml:"Environment"`
-		LogLevel    string `yaml:"LogLevel"`
-	} `yaml:"General"`
-	MarketMaker struct {
-		StartQty        float64       `yaml:"StartQty"`
-		StepQty         float64       `yaml:"StepQty"`
-		EndQty          int64         `yaml:"EndQty"`
-		ProfitThreshold int64         `yaml:"ProfitThreshold"`
-		Interval        time.Duration `yaml:"Interval"`
-		Slippage        float64       `yaml:"Slippage"`
-	} `yaml:"MarketMaker"`
-	Chain struct {
-		Url           string        `yaml:"Url"`
-		BlockInterval time.Duration `yaml:"BlockInterval"`
-	} `yaml:"Chain"`
-	Tokens []struct {
-		Address  string `yaml:"Address"`
-		Decimals int    `yaml:"Decimals"`
-		Symbol   string `yaml:"Symbol"`
-	} `yaml:"Tokens"`
-	Uniswap struct {
-		PoolFee float64 `yaml:"PoolFee"`
-	}
-	Nobitex struct {
-		Url                 string        `yaml:"Url"`
-		Key                 string        `yaml:"Key"`
-		MinimumOrderToman   int64         `yaml:"MinimumOrderToman"`
-		Timeout             time.Duration `yaml:"Timeout"`
-		OrderStatusInterval time.Duration `yaml:"OrderStatusInterval"`
-		RetryTimeOut        time.Duration `yaml:"RetryTimeOut"`
-		RetrySleepDuration  time.Duration `yml:"RetrySleepDuration"`
-	} `yaml:"nobitex"`
-	Contracts struct {
-		DexTrader        string `yaml:"DexTrader"`
-		UniswapV3Factory string `yaml:"UniswapV3Factory"`
-		UniswapV3Quoter  string `yaml:"UniswapV3Quoter"`
-	} `yaml:"Contracts"`
-	Indexer struct {
-		StartBlock uint64 `yaml:"StartBlock"`
-	}
-	Postgres struct {
-		Host           string `yaml:"Host"`
-		Port           int    `yaml:"Port"`
-		User           string `yaml:"User"`
-		Password       string `yaml:"Password"`
-		DB             string `yaml:"DB"`
-		MigrationsPath string `yaml:"MigrationsPath"`
-	} `yaml:"Postgres"`
+	General     General     `yaml:"General"`
+	MarketMaker MarketMaker `yaml:"MarketMaker"`
+	Chain       Chain       `yaml:"Chain"`
+	Tokens      []Token     `yaml:"Tokens"`
+	Uniswap     Uniswap     `yaml:"Uniswap"`
+	Nobitex     Nobitex     `yaml:"Nobitex"`
+	Contracts   Contracts   `yaml:"Contracts"`
+	Indexer     Indexer     `yaml:"Indexer"`
+	Postgres    Postgres    `yaml:"Postgres"`
 }
 
 func ReadConfig(configFile string) Config {
+	defaultConfig := DefaultConfig()
+
 	c := &Config{}
+	*c = defaultConfig
+
 	err := c.Unmarshal(c, configFile)
 	if err != nil {
 		log.Fatalf("Unmarshal: %v", err)

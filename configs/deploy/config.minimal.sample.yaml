@@ -1,0 +1,8 @@
+Chain:
+  Url: "SAMPLE_CHAIN_URL"
+  
+Nobitex:
+  Key: "SAMPLE_NOBITEX_KEY"
+
+Contracts:
+  DexTrader: "YOU_DEX_TRADER_CONTRACT_ADDRESS"
