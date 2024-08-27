@@ -67,7 +67,7 @@ Edit `configs/local/config.yaml` and set the necessary values.
 
 ### Run Locally:
 ```
-go run main.go server --config=configs/local/config.yaml
+go run main.go run --config=configs/local/config.yaml
 ```
 
 ## Contributing

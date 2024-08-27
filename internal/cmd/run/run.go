@@ -13,9 +13,9 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 
-	block_ptr "github.com/zarbanio/market-maker-keeper/internal/block-ptr"
+	"github.com/zarbanio/market-maker-keeper/configs"
+	blockptr "github.com/zarbanio/market-maker-keeper/internal/block-ptr"
 	"github.com/zarbanio/market-maker-keeper/internal/chain"
-	"github.com/zarbanio/market-maker-keeper/internal/configs"
 	"github.com/zarbanio/market-maker-keeper/internal/dextrader"
 	"github.com/zarbanio/market-maker-keeper/internal/domain"
 	"github.com/zarbanio/market-maker-keeper/internal/domain/pair"
@@ -31,11 +31,6 @@ import (
 	"github.com/zarbanio/market-maker-keeper/store"
 )
 
-const (
-	EnvironmentMainnet = "mainnet"
-	EnvironmentTestnet = "testnet"
-)
-
 func main(cfg configs.Config) {
 	postgresStore := store.NewPostgres(cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.DB)
 	err := postgresStore.Migrate(cfg.Postgres.MigrationsPath)
@@ -47,7 +42,7 @@ func main(cfg configs.Config) {
 		log.Panic(err)
 	}
 
-	blockPtr := block_ptr.NewDBBlockPointer(postgresStore, cfg.Indexer.StartBlock)
+	blockPtr := blockptr.NewDBBlockPointer(postgresStore, cfg.Indexer.StartBlock)
 	if !blockPtr.Exists() {
 		logger.Logger.Debug().Msg("block pointer doest not exits. creating a new one")
 		err := blockPtr.Create()
@@ -58,7 +53,12 @@ func main(cfg configs.Config) {
 		logger.Logger.Debug().Uint64("start block", cfg.Indexer.StartBlock).Msg("new block pointer created.")
 	}
 
-	executorWallet, err := keystore.New(os.Getenv("PRIVATE_KEY"))
+	privateKey := os.Getenv("PRIVATE_KEY")
+	if privateKey == "" {
+		logger.Logger.Fatal().Msg("PRIVATE_KEY environment variable is not set")
+	}
+
+	executorWallet, err := keystore.New(privateKey)
 	if err != nil {
 		logger.Logger.Fatal().Err(err).Msg("error while initializing new executor wallet")
 	}
@@ -93,17 +93,17 @@ func main(cfg configs.Config) {
 
 	uniswapV3Factory := uniswapv3.NewFactory(eth, common.HexToAddress(cfg.Contracts.UniswapV3Factory))
 
-	DAI, err := tokenStore.GetTokenBySymbol(symbol.DAI)
+	dai, err := tokenStore.GetTokenBySymbol(symbol.DAI)
 	if err != nil {
 		logger.Logger.Panic().Err(err).Msg("error while getting token by symbol")
 	}
-	ZAR, err := tokenStore.GetTokenBySymbol(symbol.ZAR)
+	zar, err := tokenStore.GetTokenBySymbol(symbol.ZAR)
 	if err != nil {
 		logger.Logger.Panic().Err(err).Msg("error while getting token by symbol")
 	}
 
 	// crate pair in database if not exist
-	botPair := pair.Pair{QuoteAsset: DAI.Symbol(), BaseAsset: ZAR.Symbol()}
+	botPair := pair.Pair{QuoteAsset: dai.Symbol(), BaseAsset: zar.Symbol()}
 	pairId, err := postgresStore.CreatePairIfNotExist(context.Background(), &botPair)
 	if err != nil {
 		logger.Logger.Panic().Err(err).Msg("error while creating pair")
@@ -111,7 +111,7 @@ func main(cfg configs.Config) {
 	botPair.Id = pairId
 
 	poolFee := domain.ParseUniswapFee(cfg.Uniswap.PoolFee)
-	_, err = uniswapV3Factory.GetPool(context.Background(), DAI.Address(), ZAR.Address(), poolFee)
+	_, err = uniswapV3Factory.GetPool(context.Background(), dai.Address(), zar.Address(), poolFee)
 	if err != nil {
 		logger.Logger.Panic().Err(err).Msg("error while getting pool from uniswapV3")
 	}
@@ -134,7 +134,7 @@ func main(cfg configs.Config) {
 		cfg.Nobitex.OrderStatusInterval,
 	)
 
-	if cfg.General.Environment == EnvironmentTestnet {
+	if cfg.General.Environment == configs.EnvironmentTestnet {
 		nobitexExchange = nobitex.NewMockExchange(
 			cfg.Nobitex.Url,
 			cfg.Nobitex.Timeout,
@@ -148,10 +148,10 @@ func main(cfg configs.Config) {
 	}
 
 	tokens := make(map[symbol.Symbol]domain.Token)
-	tokens[symbol.DAI] = DAI
-	tokens[symbol.ZAR] = ZAR
+	tokens[symbol.DAI] = dai
+	tokens[symbol.ZAR] = zar
 
-	configStrategy := strategy.Config{
+	strategyConfig := strategy.Config{
 		StartQty:        decimal.NewFromFloat(cfg.MarketMaker.StartQty),
 		StepQty:         decimal.NewFromFloat(cfg.MarketMaker.StepQty),
 		EndQty:          decimal.NewFromInt(cfg.MarketMaker.EndQty),
@@ -159,8 +159,8 @@ func main(cfg configs.Config) {
 		Slippage:        decimal.NewFromFloat(cfg.MarketMaker.Slippage),
 	}
 
-	buyDaiInUniswapSellTetherInNobitex := strategy.NewBuyDaiUniswapSellTetherNobitex(postgresStore, nobitexExchange, dexTrader, quoter, tokens, configStrategy)
-	buyTetherInNobitexSellDaiInUniswap := strategy.NewSellDaiUniswapBuyTetherNobitex(postgresStore, nobitexExchange, dexTrader, quoter, tokens, configStrategy)
+	buyDaiInUniswapSellTetherInNobitex := strategy.NewBuyDaiUniswapSellTetherNobitex(postgresStore, nobitexExchange, dexTrader, quoter, tokens, strategyConfig)
+	buyTetherInNobitexSellDaiInUniswap := strategy.NewSellDaiUniswapBuyTetherNobitex(postgresStore, nobitexExchange, dexTrader, quoter, tokens, strategyConfig)
 
 	ctx := context.Background()
 

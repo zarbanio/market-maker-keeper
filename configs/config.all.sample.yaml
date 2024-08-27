@@ -10,7 +10,7 @@ MarketMaker:
   Slippage: 0.001  # 0.001 is 0.1%
 
 Chain:
-  Url: ${MARKET_MAKER_KEEPER_RPC}
+  Url: "YOUR_ARBITRUM_CHAIN_URL"
   BlockInterval: 500ms
   
 Tokens:
@@ -28,28 +28,26 @@ Uniswap:
 
 Nobitex:
   Url: "https://api.nobitex.ir"
-  Key: ${NOBITEX_API_KEY}
+  Key: "YOUR_NOBITEX_API_KEY"
   MinimumOrderToman: 300_000
   Timeout: 60s
   OrderStatusInterval: 2s
   RetryTimeOut: 360s
   RetrySleepDuration: 5s
 
-ExecutorWallet:
-  PrivateKey: ${EXECUTOR_PRIVATE_KEY}
 
 Indexer:
-  StartBlock: ${DEX_TRADER_START_BLOCK}
+  StartBlock: 123
 
 Contracts:
-  DexTrader: "0xb993318B8af82DbA6D30B8a459c954Cb9550714b"
+  DexTrader: "YOUR_DEX_TRADER_CONTRACT_ADDRESS"
   UniswapV3Factory: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
   UniswapV3Quoter: "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
 
 Postgres:
-  Host: ${ZARBAN_MAINNET_DB_HOST}
-  Port: ${ZARBAN_MAINNET_DB_PORT}
-  User: ${ZARBAN_MAINNET_DB_USER}
-  Password: ${ZARBAN_MAINNET_DB_PASS}
-  DB: ${DB_NAME}
+  Host: "localhost"
+  Port: 5432
+  User: "postgres"
+  Password: "postgres"
+  DB: "postgres"
   MigrationsPath: '/migrations'
