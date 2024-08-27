@@ -2,8 +2,6 @@ package run
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -34,8 +32,6 @@ import (
 )
 
 func main(cfg configs.Config) {
-	c, _ := json.MarshalIndent(cfg, "", "  ")
-	fmt.Println(string(c))
 	postgresStore := store.NewPostgres(cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.DB)
 	err := postgresStore.Migrate(cfg.Postgres.MigrationsPath)
 	if err != nil {
