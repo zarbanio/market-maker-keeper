@@ -13,9 +13,9 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 
-	block_ptr "github.com/zarbanio/market-maker-keeper/internal/block-ptr"
+	"github.com/zarbanio/market-maker-keeper/configs"
+	blockptr "github.com/zarbanio/market-maker-keeper/internal/block-ptr"
 	"github.com/zarbanio/market-maker-keeper/internal/chain"
-	"github.com/zarbanio/market-maker-keeper/internal/configs"
 	"github.com/zarbanio/market-maker-keeper/internal/dextrader"
 	"github.com/zarbanio/market-maker-keeper/internal/domain"
 	"github.com/zarbanio/market-maker-keeper/internal/domain/pair"
@@ -42,7 +42,7 @@ func main(cfg configs.Config) {
 		log.Panic(err)
 	}
 
-	blockPtr := block_ptr.NewDBBlockPointer(postgresStore, cfg.Indexer.StartBlock)
+	blockPtr := blockptr.NewDBBlockPointer(postgresStore, cfg.Indexer.StartBlock)
 	if !blockPtr.Exists() {
 		logger.Logger.Debug().Msg("block pointer doest not exits. creating a new one")
 		err := blockPtr.Create()
