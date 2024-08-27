@@ -10,7 +10,7 @@ MarketMaker:
   Slippage: 0.001  # 0.001 is 0.1%
 
 Chain:
-  Url: "SAMPLE_CHAIN_URL"
+  Url: "YOUR_ARBITRUM_CHAIN_URL"
   BlockInterval: 500ms
   
 Tokens:
@@ -28,7 +28,7 @@ Uniswap:
 
 Nobitex:
   Url: "https://api.nobitex.ir"
-  Key: "SAMPLE_NOBITEX_KEY"
+  Key: "YOUR_NOBITEX_API_KEY"
   MinimumOrderToman: 300_000
   Timeout: 60s
   OrderStatusInterval: 2s
@@ -40,7 +40,7 @@ Indexer:
   StartBlock: 123
 
 Contracts:
-  DexTrader: "YOU_DEX_TRADER_CONTRACT_ADDRESS"
+  DexTrader: "YOUR_DEX_TRADER_CONTRACT_ADDRESS"
   UniswapV3Factory: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
   UniswapV3Quoter: "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
 
