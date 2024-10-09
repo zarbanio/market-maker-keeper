@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -43,39 +44,41 @@ func (e *Executor) RunAll() {
 	}
 }
 
-func (e *Executor) Run(strategy strategy.ArbitrageStrategy) error {
-	marketdata, err := strategy.Setup()
+func (e *Executor) Run(strg strategy.ArbitrageStrategy) error {
+	marketdata, err := strg.Setup()
 	if err != nil {
-		return fmt.Errorf("failed to setup strategy %s. %w", strategy.Name(), err)
+		return fmt.Errorf("failed to setup strategy %s. %w", strg.Name(), err)
 	}
-	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategy.Name()).Object("marketdata", marketdata).Msg("strategy setup completed.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strg.Name()).Object("marketdata", marketdata).Msg("strategy setup completed.")
 
-	opportunity, err := strategy.Evaluate(context.Background())
+	opportunity, err := strg.Evaluate(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to evaluate strategy %s. %w", strategy.Name(), err)
+		if !errors.As(err, &strategy.ErrorInsufficentBalance{}) {
+			return fmt.Errorf("failed to evaluate strategy %s. %w", strg.Name(), err)
+		}
 	}
 	if opportunity == nil {
 		e.Logger.Info().
 			Int64("cycleId", e.CycleId).
-			Str("strategy", strategy.Name()).
+			Str("strategy", strg.Name()).
 			Msg("no profitable opportunity found.")
 		return nil
 	}
 
 	e.Logger.Info().
 		Int64("cycleId", e.CycleId).
-		Str("strategy", strategy.Name()).
+		Str("strategy", strg.Name()).
 		Object("bestArbirageOpportunity", opportunity).
 		Msg("a profitable opportunity found.")
 
-	err = e.Execute(strategy.Name(), opportunity.NobitexOrderCandidate)
+	err = e.Execute(strg.Name(), opportunity.NobitexOrderCandidate)
 	if err != nil {
-		return fmt.Errorf("failed to execute strategy %s. %w", strategy.Name(), err)
+		return fmt.Errorf("failed to execute strategy %s. %w", strg.Name(), err)
 	}
 
-	err = e.Execute(strategy.Name(), opportunity.UniV3OrderCandidate)
+	err = e.Execute(strg.Name(), opportunity.UniV3OrderCandidate)
 	if err != nil {
-		return fmt.Errorf("failed to execute strategy %s. %w", strategy.Name(), err)
+		return fmt.Errorf("failed to execute strategy %s. %w", strg.Name(), err)
 	}
 
 	_, err = e.Store.CreateNewTrade(context.Background(), e.PairId, e.OrderId, e.TransactionId)
@@ -93,7 +96,7 @@ func (e *Executor) Run(strategy strategy.ArbitrageStrategy) error {
 		return err
 	}
 
-	strategy.Teardown()
+	strg.Teardown()
 
 	return nil
 }

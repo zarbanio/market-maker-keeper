@@ -3,6 +3,7 @@ package keystore
 import (
 	"crypto/ecdsa"
 	"log"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -15,6 +16,10 @@ type KeyStore struct {
 }
 
 func New(key string) (*KeyStore, error) {
+	ok := strings.HasPrefix(key, "0x")
+	if !ok {
+		key = "0x" + key
+	}
 	privateKeyBytes, err := hexutil.Decode(key)
 	if err != nil {
 		log.Fatalf("Failed to decode private key: %v", err)

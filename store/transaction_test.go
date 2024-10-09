@@ -109,7 +109,6 @@ func TestUpdateTransaction(t *testing.T) {
 
 	newID, err := p.CreateTransaction(context.Background(), dummyTransaction, *dummyTransaction.To())
 	require.NoError(t, err)
-	fmt.Printf("newID: %v\n", newID)
 
 	// Create the updated fields
 	updatedFields := transaction.UpdatedFields{

@@ -12,3 +12,7 @@ clean:
 	rm abis/uniswapv3_pool/uniswapv3_pool.go
 	rm abis/uniswapv3_factory/uniswapv3_factory.go
 	rm abis/uniswapv3_quoter/uniswapv3_quoter.go
+
+run:
+	go build -ldflags=-checklinkname=0 -o main main.go
+	./main run --config configs/config.minimal.sample.yaml

@@ -57,12 +57,12 @@ type (
 			Price           string    `json:"price"`
 			Amount          string    `json:"amount"`
 			TotalPrice      string    `json:"totalPrice"`
-			MatchedAmount   int       `json:"matchedAmount"`
+			MatchedAmount   string    `json:"matchedAmount"`
 			UnmatchedAmount string    `json:"unmatchedAmount"`
 			Id              int       `json:"id"`
 			Status          string    `json:"status"`
 			Partial         bool      `json:"partial"`
-			Fee             int       `json:"fee"`
+			Fee             string    `json:"fee"`
 			User            string    `json:"user"`
 			CreatedAt       time.Time `json:"created_at"`
 		} `json:"order"`

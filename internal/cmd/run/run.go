@@ -66,6 +66,9 @@ func main(cfg configs.Config) {
 	if err != nil {
 		logger.Panic().Err(err).Msg("error while initializing new executor wallet")
 	}
+	logger.Info().
+		Str("address", executorWallet.Address().Hex()).
+		Msg("executor wallet initialized")
 	eth, err := ethclient.Dial(cfg.Chain.Url)
 	if err != nil {
 		logger.Panic().Err(err).Msg("error while dialing eth client")
@@ -212,6 +215,7 @@ func main(cfg configs.Config) {
 		Logger:               logger,
 		NobitexRetryTimeOut:  cfg.Nobitex.RetryTimeOut,
 		NobitexSleepDuration: cfg.Nobitex.RetrySleepDuration,
+		UniswapFee:           domain.UniswapFeeFee01,
 	}
 
 	ticker := time.NewTicker(cfg.MarketMaker.Interval)
