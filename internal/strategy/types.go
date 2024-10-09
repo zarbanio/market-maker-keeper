@@ -16,7 +16,6 @@ import (
 type Config struct {
 	StartQty        decimal.Decimal
 	StepQty         decimal.Decimal
-	EndQty          decimal.Decimal
 	ProfitThreshold decimal.Decimal
 	Slippage        decimal.Decimal
 }

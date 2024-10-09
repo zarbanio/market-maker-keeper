@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rs/zerolog"
 	"github.com/zarbanio/market-maker-keeper/internal/chain"
 	"github.com/zarbanio/market-maker-keeper/internal/dextrader"
 	"github.com/zarbanio/market-maker-keeper/internal/domain"
@@ -14,54 +15,30 @@ import (
 	"github.com/zarbanio/market-maker-keeper/internal/domain/symbol"
 	"github.com/zarbanio/market-maker-keeper/internal/domain/transaction"
 	"github.com/zarbanio/market-maker-keeper/internal/strategy"
-	"github.com/zarbanio/market-maker-keeper/pkg/logger"
 	"github.com/zarbanio/market-maker-keeper/store"
 )
 
 type Executor struct {
-	s                    store.IStore
-	strategies           []strategy.ArbitrageStrategy
-	nobitex              domain.Exchange
-	dexTrader            dextrader.Wrapper
-	indxer               chain.Indexer
-	cycleId              int64
-	pairId               int64
-	orderId              int64
-	transactionId        int64
-	nobitexRetryTimeOut  time.Duration
-	nobitexSleepDuration time.Duration
-	uniswapFee           domain.UniswapFee
-}
-
-func NewExecutor(
-	s store.IStore,
-	pairId int64,
-	strategies []strategy.ArbitrageStrategy,
-	nobitex domain.Exchange,
-	dexTrader dextrader.Wrapper,
-	indxer chain.Indexer,
-	nobitexRetryTimeOut time.Duration,
-	nobitexSleepDuration time.Duration,
-
-) *Executor {
-	return &Executor{
-		s:                    s,
-		pairId:               pairId,
-		strategies:           strategies,
-		nobitex:              nobitex,
-		dexTrader:            dexTrader,
-		indxer:               indxer,
-		nobitexRetryTimeOut:  nobitexRetryTimeOut,
-		nobitexSleepDuration: nobitexSleepDuration,
-		uniswapFee:           domain.UniswapFeeFee01,
-	}
+	Store                store.IStore
+	Strategies           []strategy.ArbitrageStrategy
+	Nobitex              domain.Exchange
+	DexTrader            dextrader.Wrapper
+	Indxer               chain.Indexer
+	CycleId              int64
+	PairId               int64
+	OrderId              int64
+	TransactionId        int64
+	NobitexRetryTimeOut  time.Duration
+	NobitexSleepDuration time.Duration
+	UniswapFee           domain.UniswapFee
+	Logger               zerolog.Logger
 }
 
 func (e *Executor) RunAll() {
-	for _, strategy := range e.strategies {
+	for _, strategy := range e.Strategies {
 		err := e.Run(strategy)
 		if err != nil {
-			logger.Logger.Error().Err(err).Str("strategy", strategy.Name()).Msg("failed to run strategy")
+			e.Logger.Error().Err(err).Str("strategy", strategy.Name()).Msg("failed to run strategy")
 		}
 	}
 }
@@ -71,22 +48,22 @@ func (e *Executor) Run(strategy strategy.ArbitrageStrategy) error {
 	if err != nil {
 		return fmt.Errorf("failed to setup strategy %s. %w", strategy.Name(), err)
 	}
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategy.Name()).Object("marketdata", marketdata).Msg("strategy setup completed.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategy.Name()).Object("marketdata", marketdata).Msg("strategy setup completed.")
 
 	opportunity, err := strategy.Evaluate(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to evaluate strategy %s. %w", strategy.Name(), err)
 	}
 	if opportunity == nil {
-		logger.Logger.Info().
-			Int64("cycleId", e.cycleId).
+		e.Logger.Info().
+			Int64("cycleId", e.CycleId).
 			Str("strategy", strategy.Name()).
 			Msg("no profitable opportunity found.")
 		return nil
 	}
 
-	logger.Logger.Info().
-		Int64("cycleId", e.cycleId).
+	e.Logger.Info().
+		Int64("cycleId", e.CycleId).
 		Str("strategy", strategy.Name()).
 		Object("bestArbirageOpportunity", opportunity).
 		Msg("a profitable opportunity found.")
@@ -101,7 +78,7 @@ func (e *Executor) Run(strategy strategy.ArbitrageStrategy) error {
 		return fmt.Errorf("failed to execute strategy %s. %w", strategy.Name(), err)
 	}
 
-	_, err = e.s.CreateNewTrade(context.Background(), e.pairId, e.orderId, e.transactionId)
+	_, err = e.Store.CreateNewTrade(context.Background(), e.PairId, e.OrderId, e.TransactionId)
 	if err != nil {
 		return err
 	}
@@ -111,7 +88,7 @@ func (e *Executor) Run(strategy strategy.ArbitrageStrategy) error {
 		return err
 	}
 
-	err = e.s.CreateArbitrageOpporchunity(context.Background(), data)
+	err = e.Store.CreateArbitrageOpporchunity(context.Background(), data)
 	if err != nil {
 		return err
 	}
@@ -132,7 +109,7 @@ func (e *Executor) Execute(strategyName string, orderCandidate strategy.OrderCan
 }
 
 func (e *Executor) SetCycleId(cycleId int64) {
-	e.cycleId = cycleId
+	e.CycleId = cycleId
 }
 
 func (e *Executor) ExecuteUniswap(strategyName string, orderCandidate strategy.OrderCandidate) error {
@@ -140,24 +117,24 @@ func (e *Executor) ExecuteUniswap(strategyName string, orderCandidate strategy.O
 		txID   int64
 		txHash common.Hash
 	)
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Object("orderCandidate", orderCandidate).Msg("executing uniswap order candidate")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Object("orderCandidate", orderCandidate).Msg("executing uniswap order candidate")
 
-	tx, err := e.dexTrader.Trade(orderCandidate.Source(), orderCandidate.Destination(), e.uniswapFee, orderCandidate.In, orderCandidate.MinOut)
+	tx, err := e.DexTrader.Trade(orderCandidate.Source(), orderCandidate.Destination(), e.UniswapFee, orderCandidate.In, orderCandidate.MinOut)
 	if err != nil {
 		return err
 	}
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Str("transaction", tx.Hash().String()).Msg("transaction sent to uniswap.")
-	txID, err = e.s.CreateTransaction(context.Background(), tx, e.dexTrader.GetExecutorAddress())
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Str("transaction", tx.Hash().String()).Msg("transaction sent to uniswap.")
+	txID, err = e.Store.CreateTransaction(context.Background(), tx, e.DexTrader.GetExecutorAddress())
 	if err != nil {
 		return err
 	}
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Int64("transaction_id", txID).Msg("transaction created in database.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Int64("transaction_id", txID).Msg("transaction created in database.")
 
 	txHash = tx.Hash()
-	e.transactionId = txID
+	e.TransactionId = txID
 
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Str("transaction", tx.Hash().String()).Msg("waiting for transaction receipt.")
-	rec, header, err := e.indxer.WaitForReceipt(context.Background(), txHash)
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Str("transaction", tx.Hash().String()).Msg("waiting for transaction receipt.")
+	rec, header, err := e.Indxer.WaitForReceipt(context.Background(), txHash)
 	if err != nil {
 		return err
 	}
@@ -167,11 +144,11 @@ func (e *Executor) ExecuteUniswap(strategyName string, orderCandidate strategy.O
 		Timestamp:   time.Unix(int64(header.Time), 0),
 		Status:      transaction.CastFromReceiptStatus(rec.Status),
 	}
-	err = e.s.UpdateTransaction(context.Background(), txID, txUpdate)
+	err = e.Store.UpdateTransaction(context.Background(), txID, txUpdate)
 	if err != nil {
 		return err
 	}
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Str("transaction", tx.Hash().String()).Msg("transaction receipt received.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Str("transaction", tx.Hash().String()).Msg("transaction receipt received.")
 	return nil
 }
 
@@ -191,9 +168,9 @@ func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.O
 		Status:      order.Draft,
 	}
 
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Object("order", o).Msg("executing nobitex order candidate")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Object("order", o).Msg("executing nobitex order candidate")
 
-	id, t, err := e.nobitex.PlaceOrder(o)
+	id, t, err := e.Nobitex.PlaceOrder(o)
 	if err != nil {
 		return fmt.Errorf("failed to place order: %w", err)
 	}
@@ -201,39 +178,39 @@ func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.O
 		return fmt.Errorf("invalid order id: %d", id)
 	}
 
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Int64("nobitexOrderId", id).Msg("order placed in nobitex.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Int64("nobitexOrderId", id).Msg("order placed in nobitex.")
 
 	nobitexOrderId = id
 	o.CreatedAt = t
 	o.OrderId = nobitexOrderId
 	o.Status = order.Open
-	orderID, err := e.s.CreateNewOrder(context.Background(), o)
+	orderID, err := e.Store.CreateNewOrder(context.Background(), o)
 	orderId = orderID
 	if err != nil {
 		return fmt.Errorf("failed to create order: %w", err)
 	}
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Int64("orderId", orderId).Msg("order created in database.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Int64("orderId", orderId).Msg("order created in database.")
 
-	e.orderId = orderID
+	e.OrderId = orderID
 
-	logger.Logger.Info().Int64("cycleId", e.cycleId).Str("strategy", strategyName).Int64("nobitexOrderId", nobitexOrderId).Msg("waiting for nobitex order status.")
-	ctx, cancel := context.WithTimeout(context.Background(), e.nobitexRetryTimeOut)
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Int64("nobitexOrderId", nobitexOrderId).Msg("waiting for nobitex order status.")
+	ctx, cancel := context.WithTimeout(context.Background(), e.NobitexRetryTimeOut)
 	defer cancel()
 
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Logger.Error().Int64("nobitexOrderId", nobitexOrderId).Msg("nobitex order status timeout")
+			e.Logger.Error().Int64("nobitexOrderId", nobitexOrderId).Msg("nobitex order status timeout")
 			return ctx.Err()
 		default:
-			orderUpdate, err := e.nobitex.OrderStatus(context.Background(), nobitexOrderId)
+			orderUpdate, err := e.Nobitex.OrderStatus(context.Background(), nobitexOrderId)
 			if err != nil {
 				return err
 			}
 			if orderUpdate.Status != order.Filled {
 				continue
 			}
-			logger.Logger.Info().Int64("nobitexOrderId", nobitexOrderId).Str("status", orderUpdate.Status.String()).Msg("nobitex order status received.")
+			e.Logger.Info().Int64("nobitexOrderId", nobitexOrderId).Str("status", orderUpdate.Status.String()).Msg("nobitex order status received.")
 			update := order.UpdatedFields{
 				Status:          &orderUpdate.Status,
 				Price:           &orderUpdate.Price,
@@ -244,7 +221,7 @@ func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.O
 				UnmatchedAmount: &orderUpdate.UnmatchedAmount,
 				CreatedAt:       &orderUpdate.CreatedAt,
 			}
-			err = e.s.UpdateOrder(context.Background(), orderId, update)
+			err = e.Store.UpdateOrder(context.Background(), orderId, update)
 			if err != nil {
 				return err
 			}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 
@@ -27,44 +28,50 @@ import (
 	"github.com/zarbanio/market-maker-keeper/internal/nobitex"
 	"github.com/zarbanio/market-maker-keeper/internal/strategy"
 	"github.com/zarbanio/market-maker-keeper/internal/uniswapv3"
-	"github.com/zarbanio/market-maker-keeper/pkg/logger"
 	"github.com/zarbanio/market-maker-keeper/store"
 )
 
+var (
+	Logger zerolog.Logger
+)
+
 func main(cfg configs.Config) {
-	postgresStore := store.NewPostgres(cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.DB)
-	err := postgresStore.Migrate(cfg.Postgres.MigrationsPath)
+	lvl, err := zerolog.ParseLevel(cfg.General.LogLevel)
 	if err != nil {
-		log.Panic(err)
+		lvl = zerolog.InfoLevel
 	}
-	err = logger.InitLogger(context.Background(), postgresStore, cfg.General.LogLevel)
+
+	Logger = zerolog.New(os.Stdout).With().Timestamp().Caller().Logger().Level(lvl)
+
+	postgresStore := store.NewPostgres(cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User, cfg.Postgres.Password, cfg.Postgres.DB)
+	err = postgresStore.Migrate(cfg.Postgres.MigrationsPath)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	blockPtr := blockptr.NewDBBlockPointer(postgresStore, cfg.Indexer.StartBlock)
 	if !blockPtr.Exists() {
-		logger.Logger.Debug().Msg("block pointer doest not exits. creating a new one")
+		Logger.Debug().Msg("block pointer doest not exits. creating a new one")
 		err := blockPtr.Create()
 		if err != nil {
-			logger.Logger.Fatal().Err(err).Msg("error creating block pointer")
+			Logger.Fatal().Err(err).Msg("error creating block pointer")
 
 		}
-		logger.Logger.Debug().Uint64("start block", cfg.Indexer.StartBlock).Msg("new block pointer created.")
+		Logger.Debug().Uint64("start block", cfg.Indexer.StartBlock).Msg("new block pointer created.")
 	}
 
 	privateKey := os.Getenv("PRIVATE_KEY")
 	if privateKey == "" {
-		logger.Logger.Fatal().Msg("PRIVATE_KEY environment variable is not set")
+		Logger.Fatal().Msg("PRIVATE_KEY environment variable is not set")
 	}
 
 	executorWallet, err := keystore.New(privateKey)
 	if err != nil {
-		logger.Logger.Fatal().Err(err).Msg("error while initializing new executor wallet")
+		Logger.Fatal().Err(err).Msg("error while initializing new executor wallet")
 	}
 	eth, err := ethclient.Dial(cfg.Chain.Url)
 	if err != nil {
-		logger.Logger.Fatal().Err(err).Msg("error while dialing eth client")
+		Logger.Fatal().Err(err).Msg("error while dialing eth client")
 	}
 
 	tokenStore := mstore.NewMemoryTokenStore()
@@ -80,13 +87,13 @@ func main(cfg configs.Config) {
 	for _, t := range cfg.Tokens {
 		sym, err := symbol.FromString(t.Symbol)
 		if err != nil {
-			logger.Logger.Panic().Err(err).Msg("error while converting symbol type")
+			Logger.Panic().Err(err).Msg("error while converting symbol type")
 		}
 		token := erc20.NewToken(common.HexToAddress(t.Address), sym, int64(t.Decimals))
 		erc20Client := erc20.New(eth, token)
 		err = tokenStore.AddToken(token)
 		if err != nil {
-			logger.Logger.Panic().Err(err).Msg("error while adding new token in token store")
+			Logger.Panic().Err(err).Msg("error while adding new token in token store")
 		}
 		dexTrader.AddERC20Client(erc20Client)
 	}
@@ -95,25 +102,25 @@ func main(cfg configs.Config) {
 
 	dai, err := tokenStore.GetTokenBySymbol(symbol.DAI)
 	if err != nil {
-		logger.Logger.Panic().Err(err).Msg("error while getting token by symbol")
+		Logger.Panic().Err(err).Msg("error while getting token by symbol")
 	}
 	zar, err := tokenStore.GetTokenBySymbol(symbol.ZAR)
 	if err != nil {
-		logger.Logger.Panic().Err(err).Msg("error while getting token by symbol")
+		Logger.Panic().Err(err).Msg("error while getting token by symbol")
 	}
 
 	// crate pair in database if not exist
 	botPair := pair.Pair{QuoteAsset: dai.Symbol(), BaseAsset: zar.Symbol()}
 	pairId, err := postgresStore.CreatePairIfNotExist(context.Background(), &botPair)
 	if err != nil {
-		logger.Logger.Panic().Err(err).Msg("error while creating pair")
+		Logger.Panic().Err(err).Msg("error while creating pair")
 	}
 	botPair.Id = pairId
 
 	poolFee := domain.ParseUniswapFee(cfg.Uniswap.PoolFee)
 	_, err = uniswapV3Factory.GetPool(context.Background(), dai.Address(), zar.Address(), poolFee)
 	if err != nil {
-		logger.Logger.Panic().Err(err).Msg("error while getting pool from uniswapV3")
+		Logger.Panic().Err(err).Msg("error while getting pool from uniswapV3")
 	}
 	quoter := uniswapv3.NewQuoter(eth, common.HexToAddress(cfg.Contracts.UniswapV3Quoter))
 
@@ -154,19 +161,53 @@ func main(cfg configs.Config) {
 	strategyConfig := strategy.Config{
 		StartQty:        decimal.NewFromFloat(cfg.MarketMaker.StartQty),
 		StepQty:         decimal.NewFromFloat(cfg.MarketMaker.StepQty),
-		EndQty:          decimal.NewFromInt(cfg.MarketMaker.EndQty),
 		ProfitThreshold: decimal.NewFromInt(cfg.MarketMaker.ProfitThreshold),
 		Slippage:        decimal.NewFromFloat(cfg.MarketMaker.Slippage),
 	}
 
-	buyDaiInUniswapSellTetherInNobitex := strategy.NewBuyDaiUniswapSellTetherNobitex(postgresStore, nobitexExchange, dexTrader, quoter, tokens, strategyConfig)
-	buyTetherInNobitexSellDaiInUniswap := strategy.NewSellDaiUniswapBuyTetherNobitex(postgresStore, nobitexExchange, dexTrader, quoter, tokens, strategyConfig)
+	Logger.Info().
+		Str("startQty", strategyConfig.StartQty.String()).
+		Str("stepQty", strategyConfig.StepQty.String()).
+		Str("profitThreshold", strategyConfig.ProfitThreshold.String()).
+		Str("slippage", strategyConfig.Slippage.String()).
+		Msg("market maker started")
+
+	buyDaiInUniswapSellTetherInNobitex := &strategy.BuyDaiUniswapSellTetherNobitex{
+		Store:       postgresStore,
+		Nobitex:     nobitexExchange,
+		DexQuoter:   quoter,
+		DexTrader:   dexTrader,
+		Tokens:      tokens,
+		UniswapFee:  domain.UniswapFeeFee01,
+		Marketsdata: make(map[strategy.Market]strategy.MarketData),
+		Config:      strategyConfig,
+	}
+	buyTetherInNobitexSellDaiInUniswap := &strategy.SellDaiUniswapBuyTetherNobitex{
+		Store:         postgresStore,
+		Nobitex:       nobitexExchange,
+		UniswapQuoter: quoter,
+		DexTrader:     dexTrader,
+		Tokens:        tokens,
+		UniswapFee:    domain.UniswapFeeFee01,
+		Marketsdata:   make(map[strategy.Market]strategy.MarketData),
+		Config:        strategyConfig,
+	}
 
 	ctx := context.Background()
 
 	strategies := []strategy.ArbitrageStrategy{buyTetherInNobitexSellDaiInUniswap, buyDaiInUniswapSellTetherInNobitex}
 
-	exec := executor.NewExecutor(postgresStore, pairId, strategies, nobitexExchange, *dexTrader, *indexer, cfg.Nobitex.RetryTimeOut, cfg.Nobitex.RetrySleepDuration)
+	exec := &executor.Executor{
+		Store:                postgresStore,
+		Strategies:           strategies,
+		PairId:               pairId,
+		Nobitex:              nobitexExchange,
+		DexTrader:            *dexTrader,
+		Indxer:               *indexer,
+		Logger:               Logger,
+		NobitexRetryTimeOut:  cfg.Nobitex.RetryTimeOut,
+		NobitexSleepDuration: cfg.Nobitex.RetrySleepDuration,
+	}
 
 	ticker := time.NewTicker(cfg.MarketMaker.Interval)
 	done := make(chan bool)
@@ -177,23 +218,23 @@ func main(cfg configs.Config) {
 		for {
 			lastCycleId, err := postgresStore.GetLastCycleId(ctx)
 			if err != nil {
-				logger.Logger.Fatal().Err(err).Msg("error while getting last cycle Id")
+				Logger.Fatal().Err(err).Msg("error while getting last cycle Id")
 			}
 			cycleId := lastCycleId + 1
 			err = postgresStore.CreateCycle(ctx, time.Now(), domain.CycleStatusRunning)
 			if err != nil {
-				logger.Logger.Fatal().Err(err).Msg("error while creating new cycle")
+				Logger.Fatal().Err(err).Msg("error while creating new cycle")
 			}
 			exec.SetCycleId(cycleId)
-			logger.Logger.Info().Int64("cycleId", cycleId).Msg("new cycle started")
+			Logger.Info().Int64("cycleId", cycleId).Msg("new cycle started")
 			exec.RunAll()
 			status := domain.CycleStatusSuccess
 
 			err = postgresStore.UpdateCycle(ctx, cycleId, time.Now(), status)
 			if err != nil {
-				logger.Logger.Fatal().Err(err).Msg("error while updating cycle")
+				Logger.Fatal().Err(err).Msg("error while updating cycle")
 			}
-			logger.Logger.Info().Int64("cycleId", cycleId).Msg("cycle finished")
+			Logger.Info().Int64("cycleId", cycleId).Msg("cycle finished")
 			select {
 			case <-done:
 				return

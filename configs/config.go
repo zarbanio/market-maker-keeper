@@ -21,7 +21,6 @@ type General struct {
 type MarketMaker struct {
 	StartQty        float64       `yaml:"StartQty"`
 	StepQty         float64       `yaml:"StepQty"`
-	EndQty          int64         `yaml:"EndQty"`
 	ProfitThreshold int64         `yaml:"ProfitThreshold"`
 	Interval        time.Duration `yaml:"Interval"`
 	Slippage        float64       `yaml:"Slippage"`
