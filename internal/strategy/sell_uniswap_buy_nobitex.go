@@ -17,39 +17,15 @@ import (
 )
 
 type SellDaiUniswapBuyTetherNobitex struct {
-	s             store.IStore
-	nobitex       domain.Exchange
-	uniswapQuoter *uniswapv3.Quoter
-	dexTrader     *dextrader.Wrapper
-	tokens        map[symbol.Symbol]domain.Token
-	uniswapFee    domain.UniswapFee
+	Store         store.IStore
+	Nobitex       domain.Exchange
+	UniswapQuoter *uniswapv3.Quoter
+	DexTrader     *dextrader.Wrapper
+	Tokens        map[symbol.Symbol]domain.Token
+	UniswapFee    domain.UniswapFee
 
-	marketsdata MarketsData
-	config      Config
-}
-
-func NewSellDaiUniswapBuyTetherNobitex(
-	s store.IStore,
-	exchange domain.Exchange,
-	dexTrader *dextrader.Wrapper,
-	uniswapQuoter *uniswapv3.Quoter,
-	tokens map[symbol.Symbol]domain.Token,
-	config Config,
-) ArbitrageStrategy {
-	marketsdata := make(map[Market]MarketData)
-	marketsdata[UniswapV3] = NewMarketData()
-	marketsdata[Nobitex] = NewMarketData()
-
-	return &SellDaiUniswapBuyTetherNobitex{
-		s:             s,
-		nobitex:       exchange,
-		uniswapQuoter: uniswapQuoter,
-		dexTrader:     dexTrader,
-		config:        config,
-		tokens:        tokens,
-		uniswapFee:    domain.UniswapFeeFee01,
-		marketsdata:   marketsdata,
-	}
+	Marketsdata MarketsData
+	Config      Config
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) Name() string {
@@ -57,6 +33,11 @@ func (s *SellDaiUniswapBuyTetherNobitex) Name() string {
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) Setup() (MarketsData, error) {
+	if s.Marketsdata == nil {
+		marketsdata := make(map[Market]MarketData)
+		marketsdata[Nobitex] = NewMarketData()
+		marketsdata[UniswapV3] = NewMarketData()
+	}
 	_, err := s.getNobitexBalances()
 	if err != nil {
 		return nil, err
@@ -69,53 +50,59 @@ func (s *SellDaiUniswapBuyTetherNobitex) Setup() (MarketsData, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.marketsdata, nil
+	return s.Marketsdata, nil
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) getNobitexBalances() (map[symbol.Symbol]decimal.Decimal, error) {
-	balances, err := s.nobitex.Balances()
+	balances, err := s.Nobitex.Balances()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nobitex balances. %w", err)
 	}
 	for _, balance := range balances {
-		s.marketsdata[Nobitex].Balances[balance.Symbol] = balance.Balance
+		s.Marketsdata[Nobitex].Balances[balance.Symbol] = balance.Balance
 	}
-	return s.marketsdata[Nobitex].Balances, nil
+	return s.Marketsdata[Nobitex].Balances, nil
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) getDexTraderBalances() (map[symbol.Symbol]decimal.Decimal, error) {
-	balances, err := s.dexTrader.GetTokenBalances(context.Background())
+	balances, err := s.DexTrader.GetTokenBalances(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get dex trader balances. %w", err)
 	}
 	for _, balance := range balances {
-		s.marketsdata[UniswapV3].Balances[balance.Symbol] = balance.Balance
+		if balance.Balance.IsZero() {
+			continue
+		}
+		s.Marketsdata[UniswapV3].Balances[balance.Symbol] = balance.Balance
 	}
-	return s.marketsdata[UniswapV3].Balances, nil
+	return s.Marketsdata[UniswapV3].Balances, nil
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) getNobitexPrices() (map[symbol.Symbol]decimal.Decimal, error) {
-	ethPrice, err := s.nobitex.ExchangeRate(symbol.ETH, symbol.IRT)
+	ethPrice, err := s.Nobitex.ExchangeRate(symbol.ETH, symbol.IRT)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get eth price. %w", err)
 	}
-	tetherPrice, err := s.nobitex.ExchangeRate(symbol.USDT, symbol.IRT)
+	tetherPrice, err := s.Nobitex.ExchangeRate(symbol.USDT, symbol.IRT)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tether price. %w", err)
 	}
-	s.marketsdata[Nobitex].Prices[symbol.ETH] = ethPrice.Div(decimal.NewFromInt(10))     // convert from rial to toman
-	s.marketsdata[Nobitex].Prices[symbol.USDT] = tetherPrice.Div(decimal.NewFromInt(10)) // convert from rial to toman
-	return s.marketsdata[Nobitex].Prices, nil
+	s.Marketsdata[Nobitex].Prices[symbol.ETH] = ethPrice.Div(decimal.NewFromInt(10))     // convert from rial to toman
+	s.Marketsdata[Nobitex].Prices[symbol.USDT] = tetherPrice.Div(decimal.NewFromInt(10)) // convert from rial to toman
+	return s.Marketsdata[Nobitex].Prices, nil
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) Evaluate(ctx context.Context) (*ArbitrageOpportunity, error) {
-	if s.marketsdata == nil {
+	if s.Marketsdata == nil {
 		return nil, fmt.Errorf("markets data is nil")
 	}
 
-	startQty := s.config.StartQty
-	endQty := decimal.Min(s.config.EndQty)
-	stepQty := s.config.StepQty
+	startQty := s.Config.StartQty
+	endQty := decimal.Min(
+		s.Marketsdata[Nobitex].Balances[symbol.USDT],
+		s.Marketsdata[UniswapV3].Balances[symbol.DAI],
+	)
+	stepQty := s.Config.StepQty
 
 	var bestArbirageOpportunity *ArbitrageOpportunity
 
@@ -129,7 +116,7 @@ func (s *SellDaiUniswapBuyTetherNobitex) Evaluate(ctx context.Context) (*Arbitra
 			return nil, fmt.Errorf("failed to find uniswap order candidate. %w", err)
 		}
 
-		nobitexOrderCandidate, err := s.findNobitexOrderCandidate(ctx, qty)
+		nobitexOrderCandidate, err := s.findNobitexOrderCandidate(qty)
 		if err != nil {
 			if errors.Is(err, ErrorInsufficentBalance{}) {
 				logger.Logger.Warn().Err(err).Msg("not enough balance to find the best arbitrage opportunity.")
@@ -169,13 +156,13 @@ func (s *SellDaiUniswapBuyTetherNobitex) findUniswapOrderCandidate(ctx context.C
 	// amountIn is in dai
 	// amountOut is in zar
 	// we are selling dai
-	tokenIn := s.tokens[symbol.DAI]
-	tokenOut := s.tokens[symbol.ZAR]
-	etherPrice := s.marketsdata[Nobitex].Prices[symbol.ETH]
-	usdtPrice := s.marketsdata[Nobitex].Prices[symbol.USDT]
-	daiBalance := s.marketsdata[UniswapV3].Balances[symbol.DAI]
+	tokenIn := s.Tokens[symbol.DAI]
+	tokenOut := s.Tokens[symbol.ZAR]
+	etherPrice := s.Marketsdata[Nobitex].Prices[symbol.ETH]
+	usdtPrice := s.Marketsdata[Nobitex].Prices[symbol.USDT]
+	daiBalance := s.Marketsdata[UniswapV3].Balances[symbol.DAI]
 
-	out, err := s.uniswapQuoter.GetSwapOutputWithExactInput(ctx, tokenIn, tokenOut, s.uniswapFee, qty)
+	out, err := s.UniswapQuoter.GetSwapOutputWithExactInput(ctx, tokenIn, tokenOut, s.UniswapFee, qty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get swap output with exact input: %w", err)
 	}
@@ -184,9 +171,9 @@ func (s *SellDaiUniswapBuyTetherNobitex) findUniswapOrderCandidate(ctx context.C
 		return nil, errors.New("not valid quantity for this liquidity")
 	}
 
-	minOut := out.Mul(decimal.NewFromInt(1).Sub(s.config.Slippage)).Round(int32(tokenOut.Decimals()))
+	minOut := out.Mul(decimal.NewFromInt(1).Sub(s.Config.Slippage)).Round(int32(tokenOut.Decimals()))
 
-	dexTraderGasFee, err := s.dexTrader.EstimateDexTradeGasFee(tokenIn, tokenOut, s.uniswapFee.BigInt(), qty, minOut)
+	dexTraderGasFee, err := s.DexTrader.EstimateDexTradeGasFee(tokenIn, tokenOut, s.UniswapFee.BigInt(), qty, minOut)
 	if err != nil {
 		// If the dexTrader's assets are less than the specified quantity,
 		// the EstimateDexTradeGasFee function will return an "execution reverted: STF" error.
@@ -229,14 +216,14 @@ func (s *SellDaiUniswapBuyTetherNobitex) findUniswapOrderCandidate(ctx context.C
 	return oc, nil
 }
 
-func (s *SellDaiUniswapBuyTetherNobitex) findNobitexOrderCandidate(ctx context.Context, qty decimal.Decimal) (*OrderCandidate, error) {
+func (s *SellDaiUniswapBuyTetherNobitex) findNobitexOrderCandidate(qty decimal.Decimal) (*OrderCandidate, error) {
 	// qty is in tether
 	// makerFee := s.nobitex.Fees(trade.Maker)
 	// minOrder := s.nobitex.MinimumOrderToman()
-	usdtPrice := s.marketsdata[Nobitex].Prices[symbol.USDT]
-	tomanBalance := s.marketsdata[Nobitex].Balances[symbol.RLS].Div(decimal.NewFromInt(10)) // convert from rial to toman
+	usdtPrice := s.Marketsdata[Nobitex].Prices[symbol.USDT]
+	tomanBalance := s.Marketsdata[Nobitex].Balances[symbol.RLS].Div(decimal.NewFromInt(10)) // convert from rial to toman
 
-	orderBook, err := s.nobitex.OrderBook(symbol.USDT, symbol.IRT)
+	orderBook, err := s.Nobitex.OrderBook(symbol.USDT, symbol.IRT)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nobitex order book: %w", err)
 	}
@@ -280,5 +267,5 @@ func (s *SellDaiUniswapBuyTetherNobitex) Teardown() {
 	marketsdata := make(map[Market]MarketData)
 	marketsdata[UniswapV3] = NewMarketData()
 	marketsdata[Nobitex] = NewMarketData()
-	s.marketsdata = marketsdata
+	s.Marketsdata = marketsdata
 }

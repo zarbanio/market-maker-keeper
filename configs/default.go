@@ -11,10 +11,9 @@ func DefaultConfig() Config {
 			LogLevel:    "info",
 		},
 		MarketMaker: MarketMaker{
-			StartQty:        10.0,
-			StepQty:         20.0,
-			EndQty:          400,   // max trade DAI in strategy0 and strategy1
-			ProfitThreshold: 50000, // 50_000 TMN
+			StartQty:        1,
+			StepQty:         1,
+			ProfitThreshold: 5_000, // 50_000 TMN
 			Interval:        time.Minute * 10,
 			Slippage:        0.001,
 		},
@@ -39,7 +38,7 @@ func DefaultConfig() Config {
 		Nobitex: Nobitex{
 			Url:                 "https://api.nobitex.ir",
 			Key:                 "", // Assuming no default value for Key
-			MinimumOrderToman:   300000,
+			MinimumOrderToman:   300_000,
 			Timeout:             time.Second * 60,  // 60s
 			OrderStatusInterval: time.Second * 2,   // 2s
 			RetryTimeOut:        time.Second * 360, // 360s
