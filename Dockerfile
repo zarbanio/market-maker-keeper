@@ -1,4 +1,4 @@
-FROM golang:1.22.1 as builder
+FROM golang:1.23.0 as builder
 WORKDIR /build
 COPY . . 
 RUN  go env -w GO111MODULE=on && \

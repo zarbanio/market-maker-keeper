@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/rs/zerolog"
 	"github.com/shopspring/decimal"
 	"github.com/zarbanio/market-maker-keeper/internal/dextrader"
 	"github.com/zarbanio/market-maker-keeper/internal/domain"
@@ -13,7 +14,6 @@ import (
 	"github.com/zarbanio/market-maker-keeper/internal/domain/symbol"
 	"github.com/zarbanio/market-maker-keeper/internal/domain/trade"
 	"github.com/zarbanio/market-maker-keeper/internal/uniswapv3"
-	"github.com/zarbanio/market-maker-keeper/pkg/logger"
 	"github.com/zarbanio/market-maker-keeper/store"
 )
 
@@ -39,6 +39,7 @@ type BuyDaiUniswapSellTetherNobitex struct {
 	DexTrader  *dextrader.Wrapper
 	Tokens     map[symbol.Symbol]domain.Token
 	UniswapFee domain.UniswapFee
+	Logger     zerolog.Logger
 
 	Marketsdata map[Market]MarketData
 	Config      Config
@@ -133,7 +134,7 @@ func (s *BuyDaiUniswapSellTetherNobitex) Evaluate(ctx context.Context) (*Arbitra
 				break
 			}
 			if errors.Is(err, ErrorInvalidAmount) {
-				logger.Logger.Warn().Err(err).Msg("invalid amount to find the best arbitrage opportunity.")
+				s.Logger.Warn().Err(err).Msg("invalid amount to find the best arbitrage opportunity.")
 				continue
 			}
 			return nil, err
@@ -143,7 +144,7 @@ func (s *BuyDaiUniswapSellTetherNobitex) Evaluate(ctx context.Context) (*Arbitra
 			UniV3OrderCandidate:   *uniswapV3OrderCandidate,
 			NobitexOrderCandidate: *nobitexOrderCandidate,
 		}
-		logger.Logger.Debug().Object("ArbitrageOpportunity", arbitrageOpportunity).Msg("arbitrage opportunity")
+		s.Logger.Debug().Object("ArbitrageOpportunity", arbitrageOpportunity).Msg("arbitrage opportunity")
 
 		if arbitrageOpportunity.EstimatedProfit().GreaterThan(bestArbirageOpportunity.EstimatedProfit()) {
 			bestArbirageOpportunity = arbitrageOpportunity
