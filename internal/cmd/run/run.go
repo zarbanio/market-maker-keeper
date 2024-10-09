@@ -170,15 +170,18 @@ func main(cfg configs.Config) {
 		Msg("market maker started")
 
 	buyDaiInUniswapSellTetherInNobitex := &strategy.BuyDaiUniswapSellTetherNobitex{
-		Store:       postgresStore,
-		Nobitex:     nobitexExchange,
-		DexQuoter:   quoter,
-		DexTrader:   dexTrader,
-		Tokens:      tokens,
-		UniswapFee:  domain.UniswapFeeFee01,
-		Marketsdata: make(map[strategy.Market]strategy.MarketData),
-		Config:      strategyConfig,
-		Logger:      logger,
+		Store:      postgresStore,
+		Nobitex:    nobitexExchange,
+		DexQuoter:  quoter,
+		DexTrader:  dexTrader,
+		Tokens:     tokens,
+		UniswapFee: domain.UniswapFeeFee01,
+		Marketsdata: map[strategy.Market]strategy.MarketData{
+			strategy.Nobitex:   strategy.NewMarketData(),
+			strategy.UniswapV3: strategy.NewMarketData(),
+		},
+		Config: strategyConfig,
+		Logger: logger,
 	}
 	buyTetherInNobitexSellDaiInUniswap := &strategy.SellDaiUniswapBuyTetherNobitex{
 		Store:         postgresStore,
@@ -187,9 +190,12 @@ func main(cfg configs.Config) {
 		DexTrader:     dexTrader,
 		Tokens:        tokens,
 		UniswapFee:    domain.UniswapFeeFee01,
-		Marketsdata:   make(map[strategy.Market]strategy.MarketData),
-		Config:        strategyConfig,
-		Logger:        logger,
+		Marketsdata: map[strategy.Market]strategy.MarketData{
+			strategy.Nobitex:   strategy.NewMarketData(),
+			strategy.UniswapV3: strategy.NewMarketData(),
+		},
+		Config: strategyConfig,
+		Logger: logger,
 	}
 
 	ctx := context.Background()
