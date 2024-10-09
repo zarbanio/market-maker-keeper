@@ -70,7 +70,6 @@ func (c *httpClient) placeOrder(order order.Order) (placeOrderResponse, error) {
 		"amount":      amount,
 		"price":       price,
 	})
-	fmt.Println(string(body))
 	if err != nil {
 		return placeOrderResponse{}, err
 	}

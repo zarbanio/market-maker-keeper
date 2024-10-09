@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -95,7 +94,6 @@ func TestUpdateOrder(t *testing.T) {
 
 	newID, err := psql.CreateNewOrder(context.Background(), *newOrder)
 	require.NoError(t, err)
-	fmt.Printf("newID: %v\n", newID)
 	matchedAmount := decimal.NewFromInt(0)
 	unmatchedAmount := decimal.NewFromInt(0)
 	status := order.Canceled

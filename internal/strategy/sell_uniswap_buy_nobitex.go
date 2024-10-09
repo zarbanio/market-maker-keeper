@@ -55,6 +55,9 @@ func (s *SellDaiUniswapBuyTetherNobitex) getNobitexBalances() (map[symbol.Symbol
 		return nil, fmt.Errorf("failed to get nobitex balances. %w", err)
 	}
 	for _, balance := range balances {
+		if balance.Balance.IsZero() {
+			continue
+		}
 		s.Marketsdata[Nobitex].Balances[balance.Symbol] = balance.Balance
 	}
 	return s.Marketsdata[Nobitex].Balances, nil
@@ -94,28 +97,38 @@ func (s *SellDaiUniswapBuyTetherNobitex) Evaluate(ctx context.Context) (*Arbitra
 	}
 
 	startQty := s.Config.StartQty
-	endQty := decimal.Min(
-		s.Marketsdata[Nobitex].Balances[symbol.USDT],
-		s.Marketsdata[UniswapV3].Balances[symbol.DAI],
-	)
+	endQty := s.Marketsdata[UniswapV3].Balances[symbol.DAI]
 	stepQty := s.Config.StepQty
 
 	var bestArbirageOpportunity *ArbitrageOpportunity
 
+	s.Logger.Debug().
+		Str("startQty", domain.CommaSeparate(startQty.String())).
+		Str("endQty", domain.CommaSeparate(endQty.String())).
+		Str("stepQty", domain.CommaSeparate(stepQty.String())).
+		Str("strategy", s.Name()).
+		Msg("evaluating arbitrage opportunity")
+
 	for qty := startQty; qty.LessThanOrEqual(endQty); qty = qty.Add(stepQty) {
+		s.Logger.Debug().
+			Str("qty", domain.CommaSeparate(qty.String())).
+			Msg("evaluating arbitrage opportunity")
+
 		uniswapV3OrderCandidate, err := s.findUniswapOrderCandidate(ctx, qty)
 		if err != nil {
-			if errors.Is(err, ErrorInsufficentBalance{}) {
-				s.Logger.Warn().Err(err).Msg("not enough balance to find the best arbitrage opportunity.")
+			if errors.As(err, &ErrorInsufficentBalance{}) {
 				break
 			}
 			return nil, fmt.Errorf("failed to find uniswap order candidate. %w", err)
 		}
 
+		s.Logger.Debug().
+			Object("uniswapV3OrderCandidate", uniswapV3OrderCandidate).
+			Msg("uniswap v3 order candidate found")
+
 		nobitexOrderCandidate, err := s.findNobitexOrderCandidate(qty)
 		if err != nil {
-			if errors.Is(err, ErrorInsufficentBalance{}) {
-				s.Logger.Warn().Err(err).Msg("not enough balance to find the best arbitrage opportunity.")
+			if errors.As(err, &ErrorInsufficentBalance{}) {
 				break
 			}
 			if errors.Is(err, ErrorInvalidAmount) {
@@ -124,6 +137,10 @@ func (s *SellDaiUniswapBuyTetherNobitex) Evaluate(ctx context.Context) (*Arbitra
 			}
 			return nil, fmt.Errorf("failed to find nobitex order candidate. %w", err)
 		}
+
+		s.Logger.Debug().
+			Object("nobitexOrderCandidate", nobitexOrderCandidate).
+			Msg("nobitex order candidate found")
 
 		arbitrageOpportunity := &ArbitrageOpportunity{
 			UniV3OrderCandidate:   *uniswapV3OrderCandidate,
@@ -134,6 +151,10 @@ func (s *SellDaiUniswapBuyTetherNobitex) Evaluate(ctx context.Context) (*Arbitra
 
 		if arbitrageOpportunity.EstimatedProfit().GreaterThan(bestArbirageOpportunity.EstimatedProfit()) {
 			bestArbirageOpportunity = arbitrageOpportunity
+
+			s.Logger.Debug().
+				Object("arbitrageOpportunity", bestArbirageOpportunity).
+				Msg("best arbitrage opportunity so far")
 		}
 	}
 

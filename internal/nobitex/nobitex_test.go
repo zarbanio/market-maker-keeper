@@ -86,12 +86,12 @@ func TestPlaceOrder(t *testing.T) {
 				Price           string    `json:"price"`
 				Amount          string    `json:"amount"`
 				TotalPrice      string    `json:"totalPrice"`
-				MatchedAmount   int       `json:"matchedAmount"`
+				MatchedAmount   string    `json:"matchedAmount"`
 				UnmatchedAmount string    `json:"unmatchedAmount"`
 				Id              int       `json:"id"`
 				Status          string    `json:"status"`
 				Partial         bool      `json:"partial"`
-				Fee             int       `json:"fee"`
+				Fee             string    `json:"fee"`
 				User            string    `json:"user"`
 				CreatedAt       time.Time `json:"created_at"`
 			}{
@@ -101,12 +101,12 @@ func TestPlaceOrder(t *testing.T) {
 				Price:           "50000",
 				Amount:          "1",
 				TotalPrice:      "50000",
-				MatchedAmount:   1,
+				MatchedAmount:   "1",
 				UnmatchedAmount: "0",
 				Id:              123,
 				Status:          "open",
 				Partial:         false,
-				Fee:             100,
+				Fee:             "100",
 				User:            "johndoe",
 				CreatedAt:       time.Now(),
 			},

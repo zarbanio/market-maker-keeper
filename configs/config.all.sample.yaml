@@ -1,5 +1,5 @@
 General:
-  LogLevel: "info"
+  LogLevel: "debug"
 
 MarketMaker:
   StartQty: 10

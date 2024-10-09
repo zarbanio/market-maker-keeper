@@ -11,11 +11,11 @@ func DefaultConfig() Config {
 			LogLevel:    "info",
 		},
 		MarketMaker: MarketMaker{
-			StartQty:        1,
+			StartQty:        5,
 			StepQty:         1,
 			ProfitThreshold: 5_000, // 50_000 TMN
 			Interval:        time.Minute * 10,
-			Slippage:        0.001,
+			Slippage:        0.005,
 		},
 		Chain: Chain{
 			BlockInterval: time.Millisecond * 500,
