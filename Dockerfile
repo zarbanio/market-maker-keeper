@@ -6,7 +6,7 @@ RUN  go env -w GO111MODULE=on && \
 
 RUN go mod download
 
-RUN CGO_ENABLED=1 GOOS=linux go build -o main main.go
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags=-checklinkname=0 -o main main.go
 
 FROM gcr.io/distroless/base-debian12
 
