@@ -34,11 +34,6 @@ func (s *SellDaiUniswapBuyTetherNobitex) Name() string {
 }
 
 func (s *SellDaiUniswapBuyTetherNobitex) Setup() (MarketsData, error) {
-	if s.Marketsdata == nil {
-		marketsdata := make(map[Market]MarketData)
-		marketsdata[Nobitex] = NewMarketData()
-		marketsdata[UniswapV3] = NewMarketData()
-	}
 	_, err := s.getNobitexBalances()
 	if err != nil {
 		return nil, err
