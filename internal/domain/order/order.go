@@ -12,7 +12,7 @@ import (
 type (
 	Order struct {
 		Id              int64           `json:"id"`
-		OrderId         int64           `json:"order_id"`
+		OrderId         string          `json:"order_id"`
 		Execution       Execution       `json:"execution"`
 		Side            Side            `json:"side"`
 		SrcCurrency     symbol.Symbol   `json:"srcCurrency"`
@@ -48,7 +48,7 @@ type (
 
 func (o Order) MarshalZerologObject(e *zerolog.Event) {
 	e.Str("id", fmt.Sprintf("%d", o.Id)).
-		Str("orderId", fmt.Sprintf("%d", o.OrderId)).
+		Str("orderId", o.OrderId).
 		Str("execution", o.Execution.String()).
 		Str("side", o.Side.String()).
 		Str("srcCurrency", o.SrcCurrency.String()).

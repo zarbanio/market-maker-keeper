@@ -20,7 +20,7 @@ func TestGetOrderById(t *testing.T) {
 	// Create a new order and insert it into the database
 	order := &order.Order{
 		Id:              1,
-		OrderId:         123,
+		OrderId:         "123",
 		Side:            order.Buy,
 		SrcCurrency:     symbol.BTC,
 		DstCurrency:     symbol.ZAR,
@@ -72,7 +72,7 @@ func TestUpdateOrder(t *testing.T) {
 
 	// Create a new order and insert it into the database
 	newOrder := &order.Order{
-		OrderId:         123,
+		OrderId:         "123",
 		Side:            order.Buy,
 		SrcCurrency:     symbol.BTC,
 		DstCurrency:     symbol.ZAR,

@@ -1,6 +1,7 @@
 package nobitex
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/zarbanio/market-maker-keeper/internal/domain"
@@ -55,7 +56,7 @@ func (r OrderStatusResponse) toOrder() (order.Order, error) {
 	}
 
 	return order.Order{
-		OrderId:         int64(r.Order.Id),
+		OrderId:         fmt.Sprintf("%d", r.Order.Id),
 		Side:            side,
 		Price:           NewDecimalFromString(r.Order.AveragePrice),
 		SrcCurrency:     srcCurrency,

@@ -88,23 +88,23 @@ func (n nobitex) Balances() ([]domain.Balance, error) {
 	return res.toBalances(), nil
 }
 
-func (n nobitex) PlaceOrder(order order.Order) (int64, time.Time, error) {
+func (n nobitex) PlaceOrder(order order.Order) (string, time.Time, error) {
 	if order.DstCurrency == symbol.TMN {
 		order.DstCurrency = symbol.RLS
 	}
 	price, err := n.ExchangeRate(order.SrcCurrency, order.DstCurrency)
 	if err != nil {
-		return 0, time.Time{}, err
+		return "", time.Time{}, err
 	}
 	order.Price = price
 	res, err := n.client.placeOrder(order)
 	if err != nil {
-		return 0, time.Time{}, err
+		return "", time.Time{}, err
 	}
-	return int64(res.Order.Id), res.Order.CreatedAt, nil
+	return fmt.Sprintf("%d", res.Order.Id), res.Order.CreatedAt, nil
 }
 
-func (n nobitex) OrderStatus(ctx context.Context, id int64) (order.Order, error) {
+func (n nobitex) OrderStatus(ctx context.Context, id string) (order.Order, error) {
 	ticker := time.NewTicker(n.orderStatusInterval)
 	defer ticker.Stop()
 
@@ -114,7 +114,8 @@ func (n nobitex) OrderStatus(ctx context.Context, id int64) (order.Order, error)
 		case <-ctx.Done():
 			return order.Order{}, ctx.Err()
 		case <-ticker.C:
-			res, err := n.client.orderStatus(id)
+			nobitexOrderId, _ := strconv.ParseInt(id, 10, 64)
+			res, err := n.client.orderStatus(nobitexOrderId)
 			if err != nil {
 				continue
 			}
@@ -162,7 +163,7 @@ func (n nobitex) Orders(side order.Side, src, dst symbol.Symbol, state order.Sta
 			Amount:      NewDecimalFromString(ord.Amount),
 			StopPrice:   decimal.Zero,
 			Fee:         NewDecimalFromString(ord.Fee),
-			OrderId:     int64(ord.Id),
+			OrderId:     fmt.Sprintf("%s", ord.Id),
 			TotalPrice:  price,
 			Status:      status,
 			Account:     "", // TODO add account,

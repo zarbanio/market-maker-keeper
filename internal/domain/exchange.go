@@ -17,8 +17,8 @@ type Exchange interface {
 	CancelOrder(order order.Order) error
 	Balances() ([]Balance, error)
 	SetBalance(symbol symbol.Symbol, balance decimal.Decimal)
-	PlaceOrder(order order.Order) (int64, time.Time, error)
-	OrderStatus(ctx context.Context, id int64) (order.Order, error)
+	PlaceOrder(order order.Order) (string, time.Time, error)
+	OrderStatus(ctx context.Context, id string) (order.Order, error)
 	Orders(side order.Side, src, dst symbol.Symbol, state order.State) ([]order.Order, error)
 	UpdateOrder(id string, state order.State) (order.State, error)
 	RecentTrades(src, dst symbol.Symbol) ([]trade.Trade, error)

@@ -1,0 +1,3 @@
+ALTER TABLE orders
+    ALTER COLUMN order_id TYPE VARCHAR(50)
+    USING order_id::VARCHAR;
