@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/cockroachdb/apd v1.1.0
-	github.com/ethereum/go-ethereum v1.12.2
+	github.com/ethereum/go-ethereum v1.14.6-0.20241211100559-c7e740f40ca9
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/mitchellh/mapstructure v1.5.0

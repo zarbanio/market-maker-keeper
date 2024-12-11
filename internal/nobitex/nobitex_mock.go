@@ -125,7 +125,7 @@ func (e *MockExchange) Balances() ([]domain.Balance, error) {
 	return balances, nil
 }
 
-func (e *MockExchange) PlaceOrder(o order.Order) (int64, time.Time, error) {
+func (e *MockExchange) PlaceOrder(o order.Order) (string, time.Time, error) {
 	// Simulate placing an order with possible fill and update balances.
 	// In a real exchange, you would send the order to the exchange API.
 	o.Id = int64(rand.Intn(1000) + 1) // Generate a random order ID for demonstration.
@@ -135,7 +135,7 @@ func (e *MockExchange) PlaceOrder(o order.Order) (int64, time.Time, error) {
 		// Check if you have enough balance to place a buy order.
 		balance, exists := e.Balance[o.SrcCurrency]
 		if !exists || balance.LessThan(o.TotalPrice) {
-			return 0, time.Time{}, fmt.Errorf("insufficient balance for buy order")
+			return "", time.Time{}, fmt.Errorf("insufficient balance for buy order")
 		}
 
 		// Update balances after placing a buy order.
@@ -145,7 +145,7 @@ func (e *MockExchange) PlaceOrder(o order.Order) (int64, time.Time, error) {
 		// Check if you have enough balance to place a sell order.
 		balance, exists := e.Balance[o.SrcCurrency]
 		if !exists || balance.LessThan(o.Amount) {
-			return 0, time.Time{}, fmt.Errorf("insufficient balance for sell order")
+			return "", time.Time{}, fmt.Errorf("insufficient balance for sell order")
 		}
 
 		// Update balances after placing a sell order.
@@ -154,14 +154,13 @@ func (e *MockExchange) PlaceOrder(o order.Order) (int64, time.Time, error) {
 	}
 	o.Status = order.Filled
 	e.Order = append(e.Order, o) // Add the order to the active orders.
-	return o.Id, o.CreatedAt, nil
+	return fmt.Sprintf("%s", o.Id), o.CreatedAt, nil
 }
 
-func (e *MockExchange) OrderStatus(ctx context.Context, id int64) (order.Order, error) {
+func (e *MockExchange) OrderStatus(ctx context.Context, id string) (order.Order, error) {
 	// Implement order status retrieval logic (e.g., check the order's status with the exchange API).
 	for _, o := range e.Order {
-		if o.Id == id {
-			fmt.Println("=============", o.Status)
+		if o.OrderId == id {
 			return o, nil
 		}
 	}

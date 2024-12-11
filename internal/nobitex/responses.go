@@ -80,7 +80,7 @@ type (
 			Price           string    `json:"price"`
 			CreatedAt       time.Time `json:"created_at"`
 			User            string    `json:"user"`
-			Id              int       `json:"id"`
+			Id              int64     `json:"id"`
 			SrcCurrency     string    `json:"srcCurrency"`
 			TotalPrice      string    `json:"totalPrice"`
 			TotalOrderPrice string    `json:"totalOrderPrice"`

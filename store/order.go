@@ -13,7 +13,7 @@ import (
 
 type orderModel struct {
 	id              int64
-	orderId         int64
+	orderId         string
 	execution       string
 	side            string
 	srcCurrency     string
@@ -121,7 +121,7 @@ func (p postgres) CreateNewOrder(ctx context.Context, order order.Order) (int64,
 
 	// prepare insert statement
 	stmt := `
-        INSERT INTO orders (       
+        INSERT INTO orders (
 			execution,
 			side,
 			srcCurrency,
@@ -140,7 +140,7 @@ func (p postgres) CreateNewOrder(ctx context.Context, order order.Order) (int64,
 			account,
 			createdAt,
 			order_id
-		) 
+		)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		RETURNING id
     `
@@ -175,7 +175,7 @@ func (p postgres) UpdateOrder(ctx context.Context, orderID int64, updatedFields 
 	// Prepare update statement
 	stmt := `
 	UPDATE orders
-	SET 
+	SET
 		matchedAmount = COALESCE($2, matchedAmount),
 		unmatchedAmount = COALESCE($3, unmatchedAmount),
 		status = COALESCE($4, status),

@@ -157,7 +157,7 @@ func (e *Executor) ExecuteUniswap(strategyName string, orderCandidate strategy.O
 
 func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.OrderCandidate) error {
 	var (
-		nobitexOrderId int64
+		nobitexOrderId string
 		orderId        int64
 	)
 
@@ -177,11 +177,11 @@ func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.O
 	if err != nil {
 		return fmt.Errorf("failed to place order: %w", err)
 	}
-	if id == 0 {
+	if id == "" {
 		return fmt.Errorf("invalid order id: %d", id)
 	}
 
-	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Int64("nobitexOrderId", id).Msg("order placed in nobitex.")
+	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Str("nobitexOrderId", id).Msg("order placed in nobitex.")
 
 	nobitexOrderId = id
 	o.CreatedAt = t
@@ -196,14 +196,17 @@ func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.O
 
 	e.OrderId = orderID
 
-	e.Logger.Info().Int64("cycleId", e.CycleId).Str("strategy", strategyName).Int64("nobitexOrderId", nobitexOrderId).Msg("waiting for nobitex order status.")
+	e.Logger.Info().
+		Int64("cycleId", e.CycleId).
+		Str("strategy", strategyName).
+		Str("nobitexOrderId", nobitexOrderId).Msg("waiting for nobitex order status.")
 	ctx, cancel := context.WithTimeout(context.Background(), e.NobitexRetryTimeOut)
 	defer cancel()
 
 	for {
 		select {
 		case <-ctx.Done():
-			e.Logger.Error().Int64("nobitexOrderId", nobitexOrderId).Msg("nobitex order status timeout")
+			e.Logger.Error().Str("nobitexOrderId", nobitexOrderId).Msg("nobitex order status timeout")
 			return ctx.Err()
 		default:
 			orderUpdate, err := e.Nobitex.OrderStatus(context.Background(), nobitexOrderId)
@@ -213,7 +216,9 @@ func (e *Executor) ExecuteNobitex(strategyName string, orderCandidate strategy.O
 			if orderUpdate.Status != order.Filled {
 				continue
 			}
-			e.Logger.Info().Int64("nobitexOrderId", nobitexOrderId).Str("status", orderUpdate.Status.String()).Msg("nobitex order status received.")
+			e.Logger.Info().
+				Str("nobitexOrderId", nobitexOrderId).
+				Str("status", orderUpdate.Status.String()).Msg("nobitex order status received.")
 			update := order.UpdatedFields{
 				Status:          &orderUpdate.Status,
 				Price:           &orderUpdate.Price,
