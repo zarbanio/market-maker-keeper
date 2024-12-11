@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -95,22 +96,40 @@ func (c *client) GetExecutorAddress() common.Address {
 }
 
 func (c *client) Trade(ctx context.Context, token0, token1 domain.Token, poolFee *big.Int, amountsIn, amountOutMinimum decimal.Decimal) (*types.Transaction, error) {
-	gasPrice, err := c.eth.SuggestGasPrice(context.Background())
-	if err != nil {
-		return nil, err
+	const maxRetries = 10
+	const retryDelay = time.Second
+
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		gasPrice, err := c.eth.SuggestGasPrice(context.Background())
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: failed to suggest gas price: %w", attempt, err)
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		auth, err := chain.GetAccountAuth(ctx, c.eth, c.executor.PrivateKey())
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: failed to get account auth: %w", attempt, err)
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		auth.GasPrice = gasPrice
+		tx, err := c.dexTrader.Trade(auth, token0.Address(), token1.Address(), poolFee, math.Denormalize(amountsIn, token0.Decimals()), math.Denormalize(amountOutMinimum, token1.Decimals()))
+		if err != nil {
+			lastErr = fmt.Errorf("attempt %d: trade execution failed: %w", attempt, err)
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		// Trade succeeded
+		return tx, nil
 	}
 
-	auth, err := chain.GetAccountAuth(ctx, c.eth, c.executor.PrivateKey())
-	if err != nil {
-		return nil, err
-	}
-
-	auth.GasPrice = gasPrice
-	tx, err := c.dexTrader.Trade(auth, token0.Address(), token1.Address(), poolFee, math.Denormalize(amountsIn, token0.Decimals()), math.Denormalize(amountOutMinimum, token1.Decimals()))
-	if err != nil {
-		return nil, err
-	}
-	return tx, nil
+	// All retries failed
+	return nil, fmt.Errorf("trade failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *client) EstimateDexTradeGasFee(token0, token1 domain.Token, poolFee *big.Int, amountIn, amountOutMinimum decimal.Decimal) (decimal.Decimal, error) {
