@@ -129,7 +129,7 @@ func (c *client) Trade(ctx context.Context, token0, token1 domain.Token, poolFee
 	}
 
 	// All retries failed
-	return nil, fmt.Errorf("Trade failed after %d attempts: %w", maxRetries, lastErr)
+	return nil, fmt.Errorf("trade failed after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *client) EstimateDexTradeGasFee(token0, token1 domain.Token, poolFee *big.Int, amountIn, amountOutMinimum decimal.Decimal) (decimal.Decimal, error) {
